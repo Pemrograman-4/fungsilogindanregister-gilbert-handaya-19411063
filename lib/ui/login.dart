@@ -1,14 +1,69 @@
+import 'dart:async';
+
+import 'package:gilbert_handaya_19411063/ui/home.dart';
 import 'package:gilbert_handaya_19411063/ui/register.dart';
 import 'package:flutter/material.dart';
 
-class loginview extends StatefulWidget {
-  const loginview({Key? key}) : super(key: key);
+import 'package:http/http.dart' as http;
+import 'dart:convert' as convert;
+import 'package:gilbert_handaya_19411063/const/collor.dart';
+import 'package:gilbert_handaya_19411063/server/server.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+class loginview extends StatefulWidget {
   @override
   _loginviewState createState() => _loginviewState();
 }
 
 class _loginviewState extends State<loginview> {
+
+  TextEditingController controlleremail = new TextEditingController();
+  TextEditingController controllerpassword = new TextEditingController();
+
+  void ShowSnackbar(BuildContext context, Message, color) {
+    final snackBar = SnackBar(content: Text(Message), backgroundColor: color,);
+    ScaffoldMessenger.of(context).showSnackBar(snackBar);
+  }
+
+  Future<void> Signin() async {
+    String email = controlleremail.text;
+    String password = controllerpassword.text;
+    var url = UrlServer + "users/sign-in";
+    if (email.isEmpty||password.isEmpty) {
+      Navigator.of(context, rootNavigator: true).pop();
+      ShowSnackbar(context, 'Field Cannot be Empty', ErrorColor);
+    } else {
+      final response = await http.post(Uri.parse(url), body: {
+        "email": email,
+        "password": password
+      });
+      var result = convert.jsonDecode(response.body);
+      String Message = result['message'];
+      if (result['status']) {
+        Navigator.of(context, rootNavigator: true).pop();
+        ShowSnackbar(context, Message, SuccesColor);
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('isLogin', true);
+        await prefs.setString('_id', result['user']['id']);
+        await prefs.setString('nama', result['user']['nama']);
+        await prefs.setString('email', result['user']['email']);
+        await prefs.setInt('telp', result['user']['telp']);
+        await prefs.setString('password', result['user']['password']);
+        var _duration = const Duration(seconds: 1);
+        Timer(_duration, () {
+          Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (BuildContext context) => homepage()));
+        });
+      } else {
+        Navigator.of(context, rootNavigator: true).pop();
+        ShowSnackbar(context, Message, ErrorColor);
+        print(Message);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final urlImage1='assets/LOGO-UBL.png';
@@ -55,11 +110,11 @@ class _loginviewState extends State<loginview> {
                 ),
               ),
             ),
-            const Padding(
+            Padding(
               //padding: const EdgeInsets.only(left:15.0,right: 15.0,top:0,bottom: 0),
               padding: EdgeInsets.symmetric(horizontal: 15),
               child: TextField(
-                // controller: controlleremail,
+                controller: controlleremail,
                 autofocus: true,
                 keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
@@ -70,12 +125,12 @@ class _loginviewState extends State<loginview> {
                     hintText: 'Enter Email'),
               ),
             ),
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(
                   left: 15.0, right: 15.0, top: 15, bottom: 0),
               //padding: EdgeInsets.symmetric(horizontal: 15),
               child: TextField(
-                // controller: controllerpassword,
+                controller: controllerpassword,
                 autofocus: true,
                 keyboardType: TextInputType.visiblePassword,
                 obscureText: true,
@@ -105,7 +160,7 @@ class _loginviewState extends State<loginview> {
                   color: Colors.blue, borderRadius: BorderRadius.circular(10)),
               child: FlatButton(
                 onPressed: () {
-                  // Submit(context);
+                  Submit(context);
                   // Navigator.push(
                   //     context, MaterialPageRoute(builder: (_) => HomePage()));
                 },
@@ -133,5 +188,13 @@ class _loginviewState extends State<loginview> {
       ),
 
     );
+  }
+
+  Future<void> Submit(BuildContext context) async {
+    try{
+      Signin();
+    } catch (error) {
+      print(error);
+    }
   }
 }
